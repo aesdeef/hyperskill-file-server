@@ -6,8 +6,12 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 public class App {
-    Scanner scanner = new Scanner(System.in);
-    Set<String> files = new HashSet<>();
+    private final Scanner scanner;
+    private final Set<String> files = new HashSet<>();
+
+    public App(Scanner scanner) {
+        this.scanner = scanner;
+    }
 
     public void run() {
         while (true) {
