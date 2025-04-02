@@ -1,64 +1,83 @@
 package server;
 
-import java.util.HashSet;
-import java.util.Scanner;
-import java.util.Set;
-import java.util.regex.Pattern;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.util.*;
 
-public class App {
-    private final Scanner scanner;
-    private final Set<String> files = new HashSet<>();
+public class App implements Runnable {
+    private final DataInputStream input;
+    private final DataOutputStream output;
+    private final Map<String, String> files = new HashMap<>();
 
-    public App(Scanner scanner) {
-        this.scanner = scanner;
+    public App(DataInputStream input, DataOutputStream output) {
+        this.input = input;
+        this.output = output;
     }
 
     public void run() {
         while (true) {
-            String input = scanner.nextLine().trim();
-            if (input.isBlank()) {
+            String msg;
+            try {
+                msg = input.readUTF();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
+            if (msg.isBlank()) {
                 continue;
             }
-            String[] parts = input.split("\\s+");
+
+            String[] parts = msg.split("\\s+", 2);
             String command = parts[0];
-            switch (command) {
-                case "add" -> this.add(parts[1]);
-                case "get" -> this.get(parts[1]);
-                case "delete" -> this.delete(parts[1]);
-                case "exit" -> {return;}
+            if ("EXIT".equals(command)) {
+                System.exit(0);
+            }
+
+            String response = switch (command) {
+                case "PUT" -> this.put(parts[1], parts[2]);
+                case "GET" -> this.get(parts[1]);
+                case "DELETE" -> this.delete(parts[1]);
+                default -> "";
+            };
+
+            try {
+                output.writeUTF(response);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
         }
     }
 
-    private void add(String filename) {
-        if (!isValidFilename(filename) || files.contains(filename)) {
-            System.out.println("Cannot add the file " + filename);
-            return;
+    private String put(String filename, String content) {
+        if (files.containsKey(filename)) {
+            // System.out.println("Cannot add the file " + filename);
+            return "403";
         }
 
-        files.add(filename);
-        System.out.println("The file " + filename + " added successfully");
+        files.put(filename, content);
+        // System.out.println("The file " + filename + " added successfully");
+        return "200";
     }
 
-    private void get(String filename) {
-        if (files.contains(filename)) {
-            System.out.println("The file " + filename + " was sent");
+    private String get(String filename) {
+        if (files.containsKey(filename)) {
+            // System.out.println("The file " + filename + " was sent");
+            return String.format("200 %s", files.get(filename));
         } else {
-            System.out.println("The file " + filename + " not found");
+            // System.out.println("The file " + filename + " not found");
+            return "404";
         }
     }
 
-    private void delete(String filename) {
-        if (files.contains(filename)) {
+    private String delete(String filename) {
+        if (files.containsKey(filename)) {
             files.remove(filename);
-            System.out.println("The file " + filename + " was deleted");
+            // System.out.println("The file " + filename + " was deleted");
+            return "200";
         } else {
-            System.out.println("The file " + filename + " not found");
+            // System.out.println("The file " + filename + " not found");
+            return "404";
         }
-    }
-
-    private boolean isValidFilename(String filename) {
-        Pattern pattern = Pattern.compile("file(10|[1-9])");
-        return pattern.matcher(filename).matches();
     }
 }
